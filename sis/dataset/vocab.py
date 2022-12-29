@@ -1,7 +1,7 @@
 from torchtext.vocab import vocab
 from collections import Counter
 
-from constant import BASE_AMINO_ACIDS
+from sis.dataset.constants import BASE_AMINO_ACIDS
 
 
 def build_vocab_from_alphabet_dict(alphabet=BASE_AMINO_ACIDS):

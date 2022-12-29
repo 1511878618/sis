@@ -1,11 +1,10 @@
-from datasets import load_dataset, Array2D
+from datasets import load_dataset
 from functools import partial
 import torchtext.transforms as T
 
-
-from constant import BASE_AMINO_ACIDS
-from vocab import build_vocab_from_alphabet_dict
-from transformer import AminoAcidsTokenizer
+from sis.dataset.constants import BASE_AMINO_ACIDS
+from sis.dataset.vocab import build_vocab_from_alphabet_dict
+from sis.dataset.transform import AminoAcidsTokenizer
 
 
 class SISDataset(object):
@@ -16,25 +15,31 @@ class SISDataset(object):
         alphabet=BASE_AMINO_ACIDS,
         root_dir="./total_data.csv",
         test_size=0.2,
+        padding="<pad>",
+        device="cpu",
     ):
         self.aa_vocab = build_vocab_from_alphabet_dict(alphabet)
+        self.padding = padding
         self.SLF_max_length = SLF_max_length
         self.SRnase_max_length = SRnase_max_length
         self.alphabet = alphabet
+        self.device = device
 
         self.SLF_transform = T.Sequential(
             AminoAcidsTokenizer(),
             T.VocabTransform(self.aa_vocab),
             T.Truncate(self.SLF_max_length),
-            T.ToTensor(self.aa_vocab["<pad>"]),
-            T.PadTransform(self.SLF_max_length, pad_value=self.aa_vocab["<pad>"]),
+            T.ToTensor(self.aa_vocab[self.padding]),
+            T.PadTransform(self.SLF_max_length, pad_value=self.aa_vocab[self.padding]),
         )
         self.SRnase_transform = T.Sequential(
             AminoAcidsTokenizer(),
             T.VocabTransform(self.aa_vocab),
             T.Truncate(self.SRnase_max_length),
-            T.ToTensor(self.aa_vocab["<pad>"]),
-            T.PadTransform(self.SRnase_max_length, pad_value=self.aa_vocab["<pad>"]),
+            T.ToTensor(self.aa_vocab[self.padding]),
+            T.PadTransform(
+                self.SRnase_max_length, pad_value=self.aa_vocab[self.padding]
+            ),
         )
 
         self.test_size = test_size
@@ -52,15 +57,25 @@ class SISDataset(object):
             self.preproces,
             SLF_transform=self.SLF_transform,
             SRnase_transform=self.SRnase_transform,
+            padding_id=self.aa_vocab[self.padding],
         )
 
         dataset = dataset.map(preprocessing_partial, num_proc=4)
 
         # step2 to torch type
-        selected_columns = ["SLF_Seq_token", "SRnase_Seq_token", "label"]
+        selected_columns = [
+            "SLF_Seq_token",
+            "SRnase_Seq_token",
+            "label",
+            "SLF_Seq_mask",
+            "SRnase_Seq_mask",
+        ]
 
         dataset = dataset.with_format(
-            type="torch", columns=selected_columns, output_all_columns=True
+            type="torch",
+            columns=selected_columns,
+            output_all_columns=True,
+            device=self.device,
         )
 
         # step3 train_test_split
@@ -68,7 +83,7 @@ class SISDataset(object):
         return dataset_dict
 
     @staticmethod
-    def preproces(item, SLF_transform, SRnase_transform):
+    def preproces(item, SLF_transform, SRnase_transform, padding_id=1):
 
         # use label:-1 data or not , 0 meas use while 1 means do not use
         item["label"] = 0 if item["label"] == -1 else item["label"]
@@ -76,6 +91,9 @@ class SISDataset(object):
         # tokenize
         item["SLF_Seq_token"] = SLF_transform(item["SLF_Seq"])
         item["SRnase_Seq_token"] = SRnase_transform(item["SRnase_Seq"])
+
+        item["SLF_Seq_mask"] = item["SLF_Seq_token"] == padding_id
+        item["SRnase_Seq_mask"] = item["SRnase_Seq_token"] == padding_id
 
         return item
 
