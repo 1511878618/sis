@@ -3,9 +3,9 @@ from functools import partial
 import torchtext.transforms as T
 
 
-# from constant import BASE_AMINO_ACIDS
-# from vocab import build_vocab_from_alphabet_dict
-# from transformer import AminoAcidsTokenizer
+from constant import BASE_AMINO_ACIDS
+from vocab import build_vocab_from_alphabet_dict
+from transformer import AminoAcidsTokenizer
 
 
 class SISDataset(object):
@@ -14,24 +14,27 @@ class SISDataset(object):
         SLF_max_length=420,
         SRnase_max_length=230,
         alphabet=BASE_AMINO_ACIDS,
-        root_dir="../data/total_data.csv",
+        root_dir="./total_data.csv",
         test_size=0.2,
     ):
         self.aa_vocab = build_vocab_from_alphabet_dict(alphabet)
+        self.SLF_max_length = SLF_max_length
+        self.SRnase_max_length = SRnase_max_length
+        self.alphabet = alphabet
 
         self.SLF_transform = T.Sequential(
             AminoAcidsTokenizer(),
             T.VocabTransform(self.aa_vocab),
-            T.Truncate(SLF_max_length),
+            T.Truncate(self.SLF_max_length),
             T.ToTensor(self.aa_vocab["<pad>"]),
-            T.PadTransform(SLF_max_length, pad_value=self.aa_vocab["<pad>"]),
+            T.PadTransform(self.SLF_max_length, pad_value=self.aa_vocab["<pad>"]),
         )
         self.SRnase_transform = T.Sequential(
             AminoAcidsTokenizer(),
             T.VocabTransform(self.aa_vocab),
-            T.Truncate(SRnase_max_length),
+            T.Truncate(self.SRnase_max_length),
             T.ToTensor(self.aa_vocab["<pad>"]),
-            T.PadTransform(SRnase_max_length, pad_value=self.aa_vocab["<pad>"]),
+            T.PadTransform(self.SRnase_max_length, pad_value=self.aa_vocab["<pad>"]),
         )
 
         self.test_size = test_size
