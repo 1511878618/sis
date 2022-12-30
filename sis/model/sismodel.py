@@ -11,7 +11,7 @@ __author__ = "Tingfeng Xu"
 
 
 class DoubleTransformerModel(nn.Module):
-    def __init__(self, N, d_model, d_ff, dropout, seq_length):
+    def __init__(self, N, d_model, d_ff, dropout, seq_length, EmbeddingLayer):
         super(DoubleTransformerModel, self).__init__()
 
         self.N = N
@@ -20,7 +20,7 @@ class DoubleTransformerModel(nn.Module):
         self.dropout = dropout
         self.seq_length = seq_length
         # embedding layer
-        self.onehot = OnehotLayer(d_model)
+        self.EmbeddingLayer = EmbeddingLayer
         # basic layer
         attn = trans.MultiHeadAttention(1, d_model)  # head as 1
         ff = trans.PositionwiseFeedForward(d_model, d_ff, dropout)
@@ -32,9 +32,9 @@ class DoubleTransformerModel(nn.Module):
         self.fc1 = nn.Linear(d_model, 1)
         self.fc2 = nn.Linear(seq_length, 1)
 
-    def forward(self, x):
-        x_SLF = self.onehot(x["SLF_Seq_token"])
-        x_SRnase = self.onehot(x["SRnase_Seq_token"])
+    def forward(self, x, return_scores=False):
+        x_SLF = self.EmbeddingLayer(x["SLF_Seq_token"])
+        x_SRnase = self.EmbeddingLayer(x["SRnase_Seq_token"])
 
         x_SLF = self.fc1(self.encoder_SLF(x_SLF, None))
         x_SRnase = self.fc1(self.encoder_SRnase(x_SRnase, None))
@@ -42,6 +42,10 @@ class DoubleTransformerModel(nn.Module):
         o = F.relu(torch.concat([x_SLF, x_SRnase], dim=1).squeeze(-1))
 
         last_mask = torch.concat([x["SLF_Seq_mask"], x["SRnase_Seq_mask"]], dim=1)
-        o = torch.sigmoid(self.fc2(o.masked_fill(last_mask, 1e-9)))
 
+        scores = o.masked_fill(last_mask, 1e-9)
+        if return_scores:
+            self.scores = scores
+
+        o = torch.sigmoid(self.fc2(scores))
         return o
