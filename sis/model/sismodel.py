@@ -11,25 +11,25 @@ __author__ = "Tingfeng Xu"
 
 
 class DoubleTransformerModel(nn.Module):
-    def __init__(self, N, d_model, d_ff, dropout, seq_length, EmbeddingLayer):
+    def __init__(self, N, d_ff, dropout, seq_length, EmbeddingLayer):
         super(DoubleTransformerModel, self).__init__()
 
         self.N = N
-        self.d_model = d_model
+        self.d_model = EmbeddingLayer.d_model
         self.d_ff = d_ff
         self.dropout = dropout
         self.seq_length = seq_length
         # embedding layer
         self.EmbeddingLayer = EmbeddingLayer
         # basic layer
-        attn = trans.MultiHeadAttention(1, d_model)  # head as 1
-        ff = trans.PositionwiseFeedForward(d_model, d_ff, dropout)
-        encoderlayer = trans.EncoderLayer(d_model, c(attn), c(ff), dropout)
+        attn = trans.MultiHeadAttention(1, self.d_model)  # head as 1
+        ff = trans.PositionwiseFeedForward(self.d_model, d_ff, dropout)
+        encoderlayer = trans.EncoderLayer(self.d_model, c(attn), c(ff), dropout)
         # transformer encoder build
         self.encoder_SLF = trans.Encoder(c(encoderlayer), N)
         self.encoder_SRnase = trans.Encoder(c(encoderlayer), N)
         # fc layer
-        self.fc1 = nn.Linear(d_model, 1)
+        self.fc1 = nn.Linear(self.d_model, 1)
         self.fc2 = nn.Linear(seq_length, 1)
 
     def forward(self, x, return_scores=False):

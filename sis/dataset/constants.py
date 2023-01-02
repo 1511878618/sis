@@ -1,3 +1,6 @@
+PAD = "<pad>"
+UNK = "<unk>"
+
 BASE_AMINO_ACIDS = [
     "A",
     "C",

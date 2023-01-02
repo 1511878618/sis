@@ -10,10 +10,10 @@ __author__ = "Tingfeng Xu"
 class OnehotLayer(nn.Module):
     def __init__(self, num_classes):
         super(OnehotLayer, self).__init__()
-        self.num_classes = num_classes
+        self.d_model = num_classes
 
     def forward(self, x):
-        return F.one_hot(x, self.num_classes).float()
+        return F.one_hot(x, self.d_model).float()
 
 
 class EmbeddingLayer(nn.Module):
@@ -57,10 +57,16 @@ class EmbeddingLayer(nn.Module):
         ).astype(np.float32)
 
         self.sorted_embeeding_tuple = sorted_embeeding_tuple
-        self.w = torch.tensor(sorted_embedding_array)
-        self.d_model = self.w.shape[1]
-        self.tokens_num = self.w.shape[0]
+
+        self.params = nn.ParameterDict(
+            {
+                "w": torch.tensor(sorted_embedding_array),
+            }
+        )
+
+        self.d_model = self.params["w"].shape[1]
+        self.tokens_num = self.params["w"].shape[0]
 
     def forward(self, x):
         x_onehot = F.one_hot(x, self.tokens_num).float()
-        return x_onehot @ self.w
+        return x_onehot @ self.params["w"]
