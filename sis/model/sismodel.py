@@ -10,6 +10,45 @@ c = copy.deepcopy
 __author__ = "Tingfeng Xu"
 
 
+class ConvModel(nn.Module):
+    def __init__(self, EmbeddingLayer, seq_length, d_conv=32, kernel_size=4, stride=1):
+        super(ConvModel, self).__init__()
+        self.EmbeddingLayer = EmbeddingLayer
+        self.seq_length = seq_length
+        self.d_model = EmbeddingLayer.d_model
+        self.d_conv = d_conv
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.conv_block = nn.Conv1d(
+            self.d_model, self.d_conv, self.kernel_size, self.stride, padding="same"
+        )
+
+        self.fc1 = nn.Linear(self.d_conv, 1)
+        self.fc2 = nn.Linear(self.seq_length, 1)
+
+    def forward(self, x, return_scores=False):
+        x_SLF = self.EmbeddingLayer(x["SLF_Seq_token"])
+
+        x_SRnase = self.EmbeddingLayer(x["SRnase_Seq_token"])
+
+        x_total = torch.concat([x_SLF, x_SRnase], dim=1).permute(0, 2, 1)
+        # (batch, d_model, length)
+        assert len(x_SLF.shape) == 3
+        assert len(x_SRnase.shape) == 3
+
+        x_total = torch.relu(self.conv_block(x_total)).permute(0, 2, 1)
+        o = torch.relu(self.fc1(x_total)).flatten(1)
+        last_mask = torch.concat([x["SLF_Seq_mask"], x["SRnase_Seq_mask"]], dim=1)
+
+        scores = o.masked_fill(last_mask, 1e-9)
+        if return_scores:
+            self.scores = scores
+
+        o = torch.sigmoid(self.fc2(scores))
+
+        return o
+
+
 class LinearModel(nn.Module):
     def __init__(self, EmbeddingLayer, seq_length):
         super(LinearModel, self).__init__()

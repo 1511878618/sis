@@ -6,7 +6,6 @@ import torchtext.transforms as T
 from datasets import load_dataset
 
 from sis.dataset.constants import BASE_AMINO_ACIDS, PAD
-from sis.dataset.sis_dataset import SISDataset
 from sis.dataset.transform import AminoAcidsTokenizer
 from sis.dataset.vocab import build_vocab_from_alphabet_dict
 
@@ -105,19 +104,19 @@ class SISDataset(object):
 class SIS_MSADataset(SISDataset):
     def __init__(
         self,
-        data_dir,
+        root_dir,
         device="cpu",
         test_size=0.2,
         padding=PAD,
         alphabet=BASE_AMINO_ACIDS,
     ):
-        SLF_max_length, SRnase_max_length = self.__get_max_length__(data_dir=data_dir)
+        SLF_max_length, SRnase_max_length = self.__get_max_length__(data_dir=root_dir)
 
         super(SIS_MSADataset, self).__init__(
             SLF_max_length=SLF_max_length,
             SRnase_max_length=SRnase_max_length,
             alphabet=alphabet,
-            root_dir=data_dir,
+            root_dir=root_dir,
             device=device,
             padding=padding,
             test_size=test_size,
