@@ -1,10 +1,11 @@
 "model"
 import sis.model.transformer as trans
 from torch import nn
-from sis.model.embedding import OnehotLayer
-import torch.nn.functional as F
+
 import copy
 import torch
+
+from sis.utils import torch_mean
 
 c = copy.deepcopy
 __author__ = "Tingfeng Xu"
@@ -116,3 +117,56 @@ class DoubleTransformerModel(nn.Module):
 
         o = torch.sigmoid(self.fc2(scores))
         return o
+
+
+class Regression(nn.Module):
+    def __init__(self, EmbeddingLayer) -> None:
+        super().__init__()
+        self.EmbeddingLayer = EmbeddingLayer
+        self.d_model = EmbeddingLayer.d_model
+
+        self.fc = nn.Linear(self.d_model * 2, 1)  # SLF + SRnase
+
+    def forward(self, x, return_scores=False):
+        x_SLF = self.EmbeddingLayer(x["SLF_Seq_token"])
+        x_SLF_select = x["SLF_Seq_mask"]
+        x_SLF = torch_mean(x_SLF, x_SLF_select)
+
+        x_SRnase = self.EmbeddingLayer(x["SRnase_Seq_token"])
+        x_SRnase_select = x["SRnase_Seq_mask"]
+        x_SRnase = torch_mean(x_SRnase, x_SRnase_select)
+
+        assert x_SLF.shape[-1] == self.d_model
+        assert x_SRnase.shape[-1] == self.d_model
+
+        o = torch.concat([x_SLF, x_SRnase], dim=-1)
+        if return_scores:
+            self.scores = o
+
+        o = torch.sigmoid(self.fc(o))
+        return o
+
+
+# class regression(nn.Module):
+#     def __init__(self, in_features, bias=True, device=None, dtype=None):
+#         factory_kwargs = {"device": device, "dtype": dtype}
+#         super(regression, self).__init__()
+
+#         self.in_features = in_features
+
+#         self.weight = Parameter(torch.empty((in_features, 1), **factory_kwargs))
+#         if bias:
+#             self.bias = Parameter(torch.empty(1, **factory_kwargs))
+#         else:
+#             self.register_parameter("bias", None)
+#         self.reset_parameters()
+
+#     def forward(self, x):
+#         return x @ self.weight + self.bias
+
+#     def reset_parameters(self):
+#         init.kaiming_uniform_(self.weight, a=math.sqrt(5))
+#         if self.bias is not None:
+#             fan_in, _ = init._calculate_fan_in_and_fan_out(self.weight)
+#             bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+#             init.uniform_(self.bias, -bound, bound)

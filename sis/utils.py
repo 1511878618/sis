@@ -46,3 +46,17 @@ def changeStrByPos(string: str, idx, new):
     tmp = list(string)
     tmp[idx] = str(new)
     return "".join(tmp)
+
+
+def torch_mean(x, select):
+    # True 会被考虑，False会被丢掉
+    # select 和x维度应该数量一直，保证可以广播机制
+    # x = (batch, N1, N2..) select = (batch, N1, ...) bool matrix
+
+    select = select.unsqueeze(-1)
+    select = ~select
+    x = x.masked_fill(select, 1e-9).sum(dim=1)
+
+    count = select.int().sum(1)
+
+    return x / count
